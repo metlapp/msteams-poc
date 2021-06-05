@@ -1,0 +1,52 @@
+ETHAN
+{
+  "activityId": "1622843599993",
+  "user": {
+    "id": "29:1j6borP7_GGRpontwcglAopb9tBRrOhnnduOUkURtTX_deGEVDd3f4oZctHSYKFp8wyrtiC7rIE7EmXk3-uUsQA",
+    "name": "Ethan",
+    "objectId": "f0fd7764-0dbf-4252-bdc7-5358860ea486",
+    "givenName": "Ethan",
+    "email": "ethan@metlcapstone.onmicrosoft.com",
+    "userPrincipalName": "ethan@metlcapstone.onmicrosoft.com",
+    "tenantId": "9f04f85a-8f3c-43e4-887b-549d66d6dab8",
+    "userRole": "user",
+    "aadObjectId": "f0fd7764-0dbf-4252-bdc7-5358860ea486"
+  },
+  "bot": { "id": "28:f42a52da-d7eb-4168-982d-42a34aa93fe9", "name": "TestBot" },
+  "conversation": {
+    "id": "a:1O8D6Af5v9A_REi4PdjAja3tzs7AqFKFKKmHW-HjXEcg95VAwx34expYMsJNkZEEBjuIMYSH5F3y9oJCnpKP01Vv1doLcDYDD6Kfipk8XOJYsDX8sRLJEhcHXPX5G0K2L",
+    "isGroup": false,
+    "conversationType": null,
+    "tenantId": "9f04f85a-8f3c-43e4-887b-549d66d6dab8",
+    "name": null
+  },
+  "channelId": "msteams",
+  "locale": "en-US",
+  "serviceUrl": "https://smba.trafficmanager.net/ca/"
+}
+TYSON
+{
+  "activityId": "1622847269836",
+  "user": {
+    "id": "29:1LjFe2A14289i9UgweWQPAXmDpPNNNBdwZj-0u45qNr3Vt-QsknAufrcR-5wTKiF1xKwiIM0cpCpnT8rpk4_20g",
+    "name": "Tyson Hoops",
+    "objectId": "400d080d-5ae8-44c7-bb28-40f1f277e582",
+    "givenName": "Tyson",
+    "surname": "Hoops",
+    "email": "TysonHoops@metlcapstone.onmicrosoft.com",
+    "userPrincipalName": "TysonHoops@metlcapstone.onmicrosoft.com",
+    "tenantId": "9f04f85a-8f3c-43e4-887b-549d66d6dab8",
+    "userRole": "user",
+    "aadObjectId": "400d080d-5ae8-44c7-bb28-40f1f277e582"
+  },
+  "bot": { "id": "28:f42a52da-d7eb-4168-982d-42a34aa93fe9", "name": "TestBot" },
+  "conversation": {
+    "isGroup": true,
+    "conversationType": "channel",
+    "tenantId": "9f04f85a-8f3c-43e4-887b-549d66d6dab8",
+    "id": "19:grm2cHXUKwZNHIb5Meqb2zwstcgEsOVbZ2qGSw3bXCc1@thread.tacv2;messageid=1622686135711"
+  },
+  "channelId": "msteams",
+  "locale": "en-US",
+  "serviceUrl": "https://smba.trafficmanager.net/ca/"
+}

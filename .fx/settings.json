@@ -1,17 +1,21 @@
 {
-    "appName": "MetlSolutions",
+    "appName": "TestBot",
     "solutionSettings": {
         "name": "fx-solution-azure",
         "version": "1.0.0",
         "hostType": "Azure",
         "capabilities": [
-            "Bot"
+            "Tab",
+            "Bot",
+            "MessagingExtension"
         ],
         "azureResources": [],
         "activeResourcePlugins": [
             "fx-resource-local-debug",
-            "fx-resource-bot",
-            "fx-resource-aad-app-for-teams"
+            "fx-resource-frontend-hosting",
+            "fx-resource-aad-app-for-teams",
+            "fx-resource-simple-auth",
+            "fx-resource-bot"
         ]
     }
 }

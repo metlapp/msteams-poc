@@ -1,3 +1,5 @@
+
+TeamsInfo = require("botbuilder");
 // index.js is used to setup and configure your bot
 
 // Import required packages
@@ -66,19 +68,26 @@ server.listen(process.env.port || process.env.PORT || 3978, function () {
   console.log(server.url);
   console.log(`\nBot started, ${server.name} listening to ${server.url}`);
 });
-
+server.use(restify.plugins.acceptParser(server.acceptable));
+server.use(restify.plugins.queryParser());
+server.use(
+  restify.plugins.bodyParser({
+    mapParams: true
+  })
+);
 // Listen for incoming requests.
-server.post("/api/messages", async (req, res) => {
-  await adapter
-    .processActivity(req, res, async (context) => {
-      await bot.run(context);
-    })
-    .catch((err) => {
-      // Error message including "412" means it is waiting for user's consent, which is a normal process of SSO, sholdn't throw this error.
-      if (!err.message.includes("412")) {
-        throw err;
-      }
-    });
+server.post("/api/messages", async (req, res, next) => {
+ 
+      
+    
+  // Lookup previously saved conversation reference.
+
+  await adapter.continueConversation(req.body, async (context) => {
+    await context.sendActivity("Tell me if you see this");
+    res.send("ok");
+    next();
+  });
+
 });
 
 server.get(

@@ -5,7 +5,8 @@ const {
   CardFactory,
   TextFormatTypes,
   TurnContext,
-  TeamsInfo
+  TeamsInfo,
+  MessageFactory
 } = require("botbuilder");
 const { connect } = require("ngrok");
 
@@ -29,14 +30,6 @@ class TeamsBot extends TeamsActivityHandler {
     this.userState = userState;
 
     this.onMessage(async (context, next) => {
-      //Process incoming messages
-      const teamDetails = await TeamsInfo.getTeamDetails(context);
-      if (teamDetails) {
-          await context.sendActivity(`The group ID is: ${teamDetails.aadGroupId}`);
-      } else {
-          await context.sendActivity('This message did not come from a channel in a team.');
-      }
-
 
       await this.processMessage(context);
 
@@ -65,6 +58,27 @@ class TeamsBot extends TeamsActivityHandler {
       await next();
     });
   }
+
+  //create channel conversation
+  async teamsCreateChannelConversation(context, teamsChannelId, message) {
+
+    const conversationParameters = {
+      isGroup: true,
+      channelData: {
+        channel: {
+          id: teamsChannelId
+        }
+      },
+      activity: message
+    };
+
+    const connectorClient = context.adapter.createConnectorClient(context.activity.serviceUrl);
+    const conversationResourceResponse = await connectorClient.conversations.createConversation(conversationParameters);
+    const conversationReference = TurnContext.getConversationReference(context.activity);
+    conversationReference.conversation.id = conversationResourceResponse.id;
+    return [conversationReference, conversationResourceResponse.activityId];
+  }
+
 
   //Process an incoming message
   async processMessage(context) {
@@ -95,91 +109,44 @@ class TeamsBot extends TeamsActivityHandler {
         await context.sendActivity("icebreaker command success!");
         break;
       }
-
-      case "test": {
-        var title = "Sample Ice Breaker";
-        var description = "This is a sample ice breaker that will hopefully be modifiable later. Maybe we can create a template card and then just send JSON data through to the bot API?";
-        const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        const dateStr = new Date().toLocaleDateString(undefined, dateOptions);
-      
-        await context.sendActivity({
-          attachments: [
-          {
-            "contentType": "application/vnd.microsoft.card.adaptive",
-            "content": {
-            "type": "AdaptiveCard",
-            "version": "1.0",
-            "body": [
-              {
-              "type": "TextBlock",
-              "size": "Medium",
-              "weight": "Bolder",
-              "text": `${title}`
-              },
-              {
-              "type": "ColumnSet",
-              "columns": [
-                {
-                "type": "Column",
-                "items": [
-                  {
-                  "type": "Image",
-                  "style": "Person",
-                  "url": `https://avatars.slack-edge.com/2021-03-02/1820480857892_f5ff53aaec7a5507e5ad_512.png`,
-                  "size": "Small"
-                  }
-                ],
-                "width": "auto"
-                },
-                {
-                "type": "Column",
-                "items": [
-                  {
-                  "type": "TextBlock",
-                  "weight": "Bolder",
-                  "text": `Metl`,
-                  "wrap": true
-                  },
-                  {
-                  "type": "TextBlock",
-                  "spacing": "None",
-                  "text": `Created ${dateStr}`,
-                  "isSubtle": true,
-                  "wrap": true
-                  }
-                ],
-                "width": "stretch"
-                }
-              ]
-              },
-              {
-              "type": "TextBlock",
-              "text": `${description}`,
-              "wrap": true
-              },
-            ],
-            "actions": [
-              {
-                "type": "Action.Submit",
-                "title": "Dog",
-                "data": {cardAction: "update", value: "Dog"}
-              },
-              {
-                "type": "Action.Submit",
-                "title": "Cat",
-                "data": {cardAction: "update", value: "Cat"}
-              },
-              {
-                "type": "Action.Submit",
-                "title": "Fish",
-                "data": {cardAction: "update", value: "Fish"}
-              }
-            ]
-            }
-          }
-          ]
-        });
+      case "message": {
+        const teamDetails = await TeamsInfo.getTeamDetails(context);//contains Team information
+        const members = await TeamsInfo.getMembers(context);//List of all members
+        const teamMember = members[17];//Specific Member to interact with (Tyson:3,Ethan:17)
+        const message =`Hello ${teamMember.givenName}. I am Testbot.`;
+        //message reference??
+        var ref = TurnContext.getConversationReference(context.activity);
+        ref.user = teamMember;
+        //create conversation (message)
+        await context.adapter.createConversation(ref,
+          async (t1) => {
+            const ref2 = TurnContext.getConversationReference(t1.activity);
+            await t1.adapter.continueConversation(ref2, async (t2) => {
+              await t2.sendActivity(message);
+            });
+          });
+        break;
       }
+
+      case "channel": {
+        const channels = await TeamsInfo.getTeamChannels(context);//list of all channels
+        const teamsChannelId = channels[1].id;//Specific Channel to interact with
+        const message = MessageFactory.text('This will be the first message in a new thread');
+
+        
+        
+        //Create and store reference to new conversation
+        const newConversation = await this.teamsCreateChannelConversation(context, teamsChannelId, message);
+
+        //send response to conversation
+        await context.adapter.continueConversation(newConversation[0],
+          async (t) => {
+            await t.sendActivity(MessageFactory.text('This will be the first response to the new thread'));
+          });
+
+        break;
+      }
+
 
 
       default: {
