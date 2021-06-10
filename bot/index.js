@@ -1,11 +1,10 @@
-
 TeamsInfo = require("botbuilder");
 // index.js is used to setup and configure your bot
-
+const serviceURL = "https://smba.trafficmanager.net/ca/";
 // Import required packages
 const restify = require("restify");
 const path = require("path");
-
+const { TurnContext, MessageFactory } = require("botbuilder");
 // Import required bot services.
 // See https://aka.ms/bot-services to learn more about the different parts of a bot.
 const { BotFrameworkAdapter, ConversationState, MemoryStorage, UserState } = require("botbuilder");
@@ -61,7 +60,7 @@ const userState = new UserState(memoryStorage);
 
 // Create the bot that will handle incoming messages.
 const bot = new TeamsBot(conversationState, userState);
-
+const serverURL = "https://smba.trafficmanager.net/ca/";
 // Create HTTP server.
 const server = restify.createServer();
 server.listen(process.env.port || process.env.PORT || 3978, function () {
@@ -75,19 +74,77 @@ server.use(
     mapParams: true
   })
 );
+
+// Listen for incoming messagerequests.
+server.post("/api/MessageRequest", async (req, res, next) => {
+  var member = "";//member details
+  //search through all members and match email
+  for (var i = 0; i < bot.members.length; i++) {
+    if (bot.members[i].email.toString() == req.body.email) {
+      member = bot.members[i];
+    }
+  }
+  //get message from request
+  const message = MessageFactory.text(req.body.message);
+  const connectorClient = adapter.createConnectorClient(serverURL);
+  //conversation parameters
+  const conversationParameters = {
+    members: [
+      member
+    ],
+    channelData: {
+      tenant: {
+        id: "9f04f85a-8f3c-43e4-887b-549d66d6dab8"
+      }
+    }
+  };
+  const conversationResource = await connectorClient.conversations.createConversation(conversationParameters);
+  await connectorClient.conversations.sendToConversation(conversationResource.id, message);
+});
+
+
+
+server.post("/api/ChannelRequest", async (req, res, next) => {
+
+  var channelID = "";
+  //search through all channels and match the names
+  for (var i = 0; i < bot.channels.length; i++) {
+    if (bot.channels[i].name.toString() == req.body.name) {
+      channelID = bot.channels[i].id;
+    }
+  }
+  //get message from request
+  const message = MessageFactory.text(req.body.message);
+
+  //conversation parameters
+  const conversationParameters = {
+    isGroup: true,
+    channelData: {
+      channel: {
+        id: channelID
+      }
+    },
+    activity: message
+  };
+  const connectorClient = adapter.createConnectorClient(serverURL);
+  const conversationResourceResponse = await connectorClient.conversations.createConversation(conversationParameters);
+});
+
+
+
+
 // Listen for incoming requests.
-server.post("/api/messages", async (req, res, next) => {
- 
-      
-    
-  // Lookup previously saved conversation reference.
-
-  await adapter.continueConversation(req.body, async (context) => {
-    await context.sendActivity("Tell me if you see this");
-    res.send("ok");
-    next();
-  });
-
+server.post("/api/messages", async (req, res) => {
+  await adapter
+    .processActivity(req, res, async (context) => {
+      await bot.run(context);
+    })
+    .catch((err) => {
+      // Error message including "412" means it is waiting for user's consent, which is a normal process of SSO, sholdn't throw this error.
+      if (!err.message.includes("412")) {
+        throw err;
+      }
+    });
 });
 
 server.get(

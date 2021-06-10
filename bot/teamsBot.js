@@ -17,7 +17,10 @@ class TeamsBot extends TeamsActivityHandler {
    * @param {UserState} userState
    *
    */
+
   constructor(conversationState, userState) {
+    var members;
+    var channels;
     super();
     if (!conversationState) {
       throw new Error("[TeamsBot]: Missing parameter. conversationState is required");
@@ -30,15 +33,30 @@ class TeamsBot extends TeamsActivityHandler {
     this.userState = userState;
 
     this.onMessage(async (context, next) => {
-
+      await this.updateMembers(TeamsInfo, context);
       await this.processMessage(context);
 
       // By calling next() you ensure that the next BotHandler is run.
       await next();
     });
+    this.onTeamsChannelCreatedEvent(async (channelInfo, TeamInfo, context, next) => {
+      await this.updateChannels(TeamsInfo, context);
+      await next();
+    });
+    this.onTeamsChannelDeletedEvent(async (channelInfo, TeamInfo, context, next) => {
+      await this.updateChannels(TeamsInfo, context);
+      await next();
+    });
+    this.onTeamsChannelRenamedEvent(async (channelInfo, TeamInfo, context, next) => {
+      await this.updateChannels(TeamsInfo, context);
+      await next();
+    });
+    this.onTeamsChannelRestoredEvent(async (channelInfo, TeamInfo, context, next) => {
+      await this.updateChannels(TeamsInfo, context);
+      await next();
+    });
 
     this.onMembersAdded(async (context, next) => {
-      //TODO probably remove this?
 
       const membersAdded = context.activity.membersAdded;
       for (let cnt = 0; cnt < membersAdded.length; cnt++) {
@@ -46,6 +64,8 @@ class TeamsBot extends TeamsActivityHandler {
           const cardButtons = [
             { type: ActionTypes.ImBack, title: "Show introduction card", value: "intro" },
           ];
+          await this.updateMembers(TeamsInfo, context);
+          await this.updateChannels(TeamsInfo, context);
           const card = CardFactory.heroCard("Welcome", null, cardButtons, {
             text: `Congratulations! Your hello world Bot 
                             template is running. This bot has default commands to help you modify it.
@@ -57,11 +77,23 @@ class TeamsBot extends TeamsActivityHandler {
       }
       await next();
     });
+
+    this.onMembersRemoved(async (context, next) => {
+      await this.updateMembers(TeamsInfo, context);
+      await next();
+    });
+  }
+
+  async updateMembers(TeamsInfo, context) {
+    this.members = await TeamsInfo.getMembers(context);
+  }
+  async updateChannels(TeamsInfo, context) {
+    this.channels = await TeamsInfo.getTeamChannels(context);
+    this.channels[0].name = "General";
   }
 
   //create channel conversation
   async teamsCreateChannelConversation(context, teamsChannelId, message) {
-
     const conversationParameters = {
       isGroup: true,
       channelData: {
@@ -110,13 +142,16 @@ class TeamsBot extends TeamsActivityHandler {
         break;
       }
       case "message": {
-        const teamDetails = await TeamsInfo.getTeamDetails(context);//contains Team information
-        const members = await TeamsInfo.getMembers(context);//List of all members
-        const teamMember = members[17];//Specific Member to interact with (Tyson:3,Ethan:17)
-        const message =`Hello ${teamMember.givenName}. I am Testbot.`;
+        await this.updateMembers(TeamsInfo, context);
+
+        const teamMember = this.members[17];//Specific Member to interact with (Tyson:3,Ethan:17)
+
+        const message = `Hello ${teamMember.givenName}. I am Testbot.`;
         //message reference??
         var ref = TurnContext.getConversationReference(context.activity);
+
         ref.user = teamMember;
+
         //create conversation (message)
         await context.adapter.createConversation(ref,
           async (t1) => {
@@ -129,12 +164,9 @@ class TeamsBot extends TeamsActivityHandler {
       }
 
       case "channel": {
-        const channels = await TeamsInfo.getTeamChannels(context);//list of all channels
-        const teamsChannelId = channels[1].id;//Specific Channel to interact with
+        const teamsChannelId = this.channels[1].id;//Specific Channel to interact with
         const message = MessageFactory.text('This will be the first message in a new thread');
 
-        
-        
         //Create and store reference to new conversation
         const newConversation = await this.teamsCreateChannelConversation(context, teamsChannelId, message);
 
@@ -146,8 +178,6 @@ class TeamsBot extends TeamsActivityHandler {
 
         break;
       }
-
-
 
       default: {
         console.log(`Unknown command: ${text}`);
