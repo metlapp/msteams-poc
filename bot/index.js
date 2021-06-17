@@ -4,45 +4,58 @@ const serviceURL = "https://smba.trafficmanager.net/ca/";
 // Import required packages
 const restify = require("restify");
 const path = require("path");
-const { TurnContext, MessageFactory } = require("botbuilder");
+const {
+	TurnContext,
+	MessageFactory,
+	calculateChangeHash
+} = require("botbuilder");
 // Import required bot services.
 // See https://aka.ms/bot-services to learn more about the different parts of a bot.
-const { BotFrameworkAdapter, ConversationState, MemoryStorage, UserState } = require("botbuilder");
+const {
+	BotFrameworkAdapter,
+	ConversationState,
+	MemoryStorage,
+	UserState
+} = require("botbuilder");
 
-const { TeamsBot } = require("./teamsBot");
-const { connect } = require("ngrok");
+const {
+	TeamsBot
+} = require("./teamsBot");
+const {
+	connect
+} = require("ngrok");
 
 // Create adapter.
 // See https://aka.ms/about-bot-adapter to learn more about adapters.
 const adapter = new BotFrameworkAdapter({
-  appId: process.env.BOT_ID,
-  appPassword: process.env.BOT_PASSWORD,
+	appId: process.env.BOT_ID,
+	appPassword: process.env.BOT_PASSWORD,
 });
 
 adapter.onTurnError = async (context, error) => {
-  // This check writes out errors to console log .vs. app insights.
-  // NOTE: In production environment, you should consider logging this to Azure
-  //       application insights. See https://aka.ms/bottelemetry for telemetry
-  //       configuration instructions.
-  console.error(`\n [onTurnError] unhandled error: ${error}`);
+	// This check writes out errors to console log .vs. app insights.
+	// NOTE: In production environment, you should consider logging this to Azure
+	//       application insights. See https://aka.ms/bottelemetry for telemetry
+	//       configuration instructions.
+	console.error(`\n [onTurnError] unhandled error: ${error}`);
 
-  // Send a trace activity, which will be displayed in Bot Framework Emulator
-  await context.sendTraceActivity(
-    "OnTurnError Trace",
-    `${error}`,
-    "https://www.botframework.com/schemas/error",
-    "TurnError"
-  );
+	// Send a trace activity, which will be displayed in Bot Framework Emulator
+	await context.sendTraceActivity(
+		"OnTurnError Trace",
+		`${error}`,
+		"https://www.botframework.com/schemas/error",
+		"TurnError"
+	);
 
-  // Send a message to the user
-  //TODO remove this and add a logging system
-  await context.sendActivity(`The bot encountered an unhandled error:\n ${error.message}`);
-  await context.sendActivity("To continue to run this bot, please fix the bot source code.");
-  console.error(`The bot encountered an unhandled error:\n ${error.message}`);
+	// Send a message to the user
+	//TODO remove this and add a logging system
+	await context.sendActivity(`The bot encountered an unhandled error:\n ${error.message}`);
+	await context.sendActivity("To continue to run this bot, please fix the bot source code.");
+	console.error(`The bot encountered an unhandled error:\n ${error.message}`);
 
 
-  // Clear out state
-  await conversationState.delete(context);
+	// Clear out state
+	await conversationState.delete(context);
 };
 
 // Define the state store for your bot.
@@ -64,99 +77,86 @@ const serverURL = "https://smba.trafficmanager.net/ca/";
 // Create HTTP server.
 const server = restify.createServer();
 server.listen(process.env.port || process.env.PORT || 3978, function () {
-  console.log(server.url);
-  console.log(`\nBot started, ${server.name} listening to ${server.url}`);
+	console.log(server.url);
+	console.log(`\nBot started, ${server.name} listening to ${server.url}`);
 });
 server.use(restify.plugins.acceptParser(server.acceptable));
 server.use(restify.plugins.queryParser());
 server.use(
-  restify.plugins.bodyParser({
-    mapParams: true
-  })
+	restify.plugins.bodyParser({
+		mapParams: true
+	})
 );
 
 // Listen for incoming messagerequests.
 server.post("/api/MessageRequest", async (req, res, next) => {
-  var member = "";//member details
-  //search through all members and match email
-  for (var i = 0; i < bot.members.length; i++) {
-    if (bot.members[i].email.toString() == req.body.email) {
-      member = bot.members[i];
-    }
-  }
-  //get message from request
-  const message = MessageFactory.text(req.body.message);
-  const connectorClient = adapter.createConnectorClient(serverURL);
-  //conversation parameters
-  const conversationParameters = {
-    members: [
-      member
-    ],
-    channelData: {
-      tenant: {
-        id: "9f04f85a-8f3c-43e4-887b-549d66d6dab8"
-      }
-    }
-  };
-  const conversationResource = await connectorClient.conversations.createConversation(conversationParameters);
-  await connectorClient.conversations.sendToConversation(conversationResource.id, message);
+	try {
+		await bot.messageRequest(adapter, req.body);
+		res.status(200);
+	} catch (err) {
+		console.log(err);
+		res.status(500);
+	}
+
+	res.send();
 });
-
-
 
 server.post("/api/ChannelRequest", async (req, res, next) => {
+	try {
+		await bot.channelRequest(adapter, req.body);
+		res.status(200);
+	} catch (err) {
+		console.log(err);
+		res.status(500);
+	}
 
-  var channelID = "";
-  //search through all channels and match the names
-  for (var i = 0; i < bot.channels.length; i++) {
-    if (bot.channels[i].name.toString() == req.body.name) {
-      channelID = bot.channels[i].id;
-    }
-  }
-  //get message from request
-  const message = MessageFactory.text(req.body.message);
-
-  //conversation parameters
-  const conversationParameters = {
-    isGroup: true,
-    channelData: {
-      channel: {
-        id: channelID
-      }
-    },
-    activity: message
-  };
-  const connectorClient = adapter.createConnectorClient(serverURL);
-  const conversationResourceResponse = await connectorClient.conversations.createConversation(conversationParameters);
+	res.send();
 });
 
+server.post("/api/icebreaker", async (req, res, next) => {
+	if (!req.body) {
+		res.status(400);
+		res.send();
+		return;
+	}
 
+	console.log(req.body.channel);
+
+	if (req.body.type != "icebreaker") {
+		res.status(400);
+	} else {
+		await bot.sendIcebreaker(adapter, req.body);
+		res.status(200);
+	}
+
+	res.send();
+});
 
 
 // Listen for incoming requests.
 server.post("/api/messages", async (req, res) => {
-  await adapter
-    .processActivity(req, res, async (context) => {
-      await bot.run(context);
-    })
-    .catch((err) => {
-      // Error message including "412" means it is waiting for user's consent, which is a normal process of SSO, sholdn't throw this error.
-      if (!err.message.includes("412")) {
-        throw err;
-      }
-    });
+	await adapter
+		.processActivity(req, res, async (context) => {
+			await bot.run(context);
+		})
+		.catch((err) => {
+			// Error message including "412" means it is waiting for user's consent, which is a normal process of SSO, sholdn't throw this error.
+			if (!err.message.includes("412")) {
+				throw err;
+			}
+		});
 });
 
 server.get(
-  "/*",
-  restify.plugins.serveStatic({
-    directory: path.join(__dirname, "public"),
-  })
+	"/*",
+	restify.plugins.serveStatic({
+		directory: path.join(__dirname, "public"),
+	})
 );
 
 // Gracefully shutdown HTTP server
 ["exit", "uncaughtException", "SIGINT", "SIGTERM", "SIGUSR1", "SIGUSR2"].forEach((event) => {
-  process.on(event, () => {
-    server.close();
-  });
+	process.on(event, () => {
+		server.close();
+	});
 });
