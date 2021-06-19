@@ -87,46 +87,14 @@ server.use(
 		mapParams: true
 	})
 );
-
-// Listen for incoming messagerequests.
-server.post("/api/MessageRequest", async (req, res, next) => {
+// Listen for incoming message requests.
+server.post("/api/proactivemessage", async (req, res, next) => {
 	try {
-		await bot.messageRequest(adapter, req.body);
+		await bot.draftMessage(adapter, req.body);
 		res.status(200);
 	} catch (err) {
 		console.log(err);
 		res.status(500);
-	}
-
-	res.send();
-});
-
-server.post("/api/ChannelRequest", async (req, res, next) => {
-	try {
-		await bot.channelRequest(adapter, req.body);
-		res.status(200);
-	} catch (err) {
-		console.log(err);
-		res.status(500);
-	}
-
-	res.send();
-});
-
-server.post("/api/icebreaker", async (req, res, next) => {
-	if (!req.body) {
-		res.status(400);
-		res.send();
-		return;
-	}
-
-	console.log(req.body.channel);
-
-	if (req.body.type != "icebreaker") {
-		res.status(400);
-	} else {
-		await bot.sendIcebreaker(adapter, req.body);
-		res.status(200);
 	}
 
 	res.send();

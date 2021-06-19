@@ -23,7 +23,6 @@ class TeamsBot extends TeamsActivityHandler {
 	constructor(conversationState, userState) {
 		var members;
 		var channels;
-		
 
 		super();
 		if (!conversationState) {
@@ -70,9 +69,10 @@ class TeamsBot extends TeamsActivityHandler {
 						type: ActionTypes.ImBack,
 						title: "Show introduction card",
 						value: "intro"
-					}, ];
+					},];
 					await this.updateMembers(TeamsInfo, context);
 					await this.updateChannels(TeamsInfo, context);
+
 					const card = CardFactory.heroCard("Welcome", null, cardButtons, {
 						text: `Congratulations! Your hello world Bot 
                             template is running. This bot has default commands to help you modify it.
@@ -198,18 +198,33 @@ class TeamsBot extends TeamsActivityHandler {
 			}
 		}
 	}
+	validateEmail(email) {
+		const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+		return re.test(String(email).toLowerCase());
+	}
 
-	async channelRequest(adapter, body) {
-		var channelID = "";
-		//search through all channels and match the names
+	//search through all channels, match the names and return ID
+	getChannelID(channelName) {
 		for (var i = 0; i < this.channels.length; i++) {
-			if (this.channels[i].name.toString() == body.name) {
-				channelID = this.channels[i].id;
+			if (this.channels[i].name.toString() == channelName) {
+				return this.channels[i].id;
 			}
 		}
+		return null;
+	}
 
-		//get message from request
-		const message = MessageFactory.text(body.message);
+	//search through all members, match email and return details
+	getMemberDetails(email) {
+		for (var i = 0; i < this.members.length; i++) {
+			if (this.members[i].email.toString() == email) {
+				return this.members[i];
+			}
+		}
+		return null;
+	}
+
+	//send message to a channel
+	async sendChannelMessage(adapter, channelID, message) {
 
 		//conversation parameters
 		const conversationParameters = {
@@ -225,17 +240,9 @@ class TeamsBot extends TeamsActivityHandler {
 		const conversationResourceResponse = await connectorClient.conversations.createConversation(conversationParameters);
 	}
 
-	async messageRequest(adapter, body) {
-		var member = ""; //member details
-		//search through all members and match email
-		for (var i = 0; i < this.members.length; i++) {
-			if (this.members[i].email.toString() == body.email) {
-				member = this.members[i];
-			}
-		}
+	//send message to a member
+	async sendMemberMessage(adapter, member, message) {
 
-		//get message from request
-		const message = MessageFactory.text(body.message);
 		const connectorClient = adapter.createConnectorClient("https://smba.trafficmanager.net/ca/");
 		//conversation parameters
 		const conversationParameters = {
@@ -252,46 +259,37 @@ class TeamsBot extends TeamsActivityHandler {
 		await connectorClient.conversations.sendToConversation(conversationResource.id, message);
 	}
 
-	async sendIcebreaker(adapter, body) {
-		//TODO setup for individual users or channel
-		var channelID = "";
-		//search through all channels and match the names
-		for (var i = 0; i < this.channels.length; i++) {
-			if (this.channels[i].name.toString() == body.channel) {
-				channelID = this.channels[i].id;
-			}
-		}
+	//create and send message based on info from POST request
+	async draftMessage(adapter, body) {
 
-		//Create the message based on the request
 		let message;
-		switch (body.style) {
+		switch (body.type) {
+			//Yes/no question
 			case "YesNo": {
-				message = this.createYesNoIcebreaker(body.question);
+				message = this.createYesNoIcebreaker(body.text);
 				break;
 			}
-
+			//Multiple choice question
 			case "MultiChoice": {
-				message = this.createMultiResponseIcebreaker(body.question, body.choices);
+				message = this.createMultiResponseIcebreaker(body.text, body.choices);
 				break;
 			}
-
-			default: {
-				
+			//Text message
+			case "Message": {
+				message = MessageFactory.text(body.text);
+				break;
 			}
 		}
-
-		//conversation parameters
-		const conversationParameters = {
-			isGroup: true,
-			channelData: {
-				channel: {
-					id: channelID
-				}
-			},
-			activity: message
-		};
-		const connectorClient = adapter.createConnectorClient("https://smba.trafficmanager.net/ca/");
-		const conversationResourceResponse = await connectorClient.conversations.createConversation(conversationParameters);
+		//loop through targets and check for message type
+		(body.targets).forEach(element => {
+			if (this.validateEmail(element)) {
+				//email -> member
+				this.sendMemberMessage(adapter, this.getMemberDetails(element), message);
+			} else {
+				//channelName -> channel
+				this.sendChannelMessage(adapter, this.getChannelID(element), message);
+			}
+		});
 	}
 
 	/*
@@ -313,64 +311,64 @@ class TeamsBot extends TeamsActivityHandler {
 			"type": "AdaptiveCard",
 			"version": "1.0",
 			"body": [{
-					"type": "TextBlock",
-					"size": "Medium",
-					"weight": "Bolder",
-					"text": `${title}`
+				"type": "TextBlock",
+				"size": "Medium",
+				"weight": "Bolder",
+				"text": `${title}`
+			},
+			{
+				"type": "ColumnSet",
+				"columns": [{
+					"type": "Column",
+					"items": [{
+						"type": "Image",
+						"style": "Person",
+						"url": `https://avatars.slack-edge.com/2021-03-02/1820480857892_f5ff53aaec7a5507e5ad_512.png`,
+						"size": "Small"
+					}],
+					"width": "auto"
 				},
 				{
-					"type": "ColumnSet",
-					"columns": [{
-							"type": "Column",
-							"items": [{
-								"type": "Image",
-								"style": "Person",
-								"url": `https://avatars.slack-edge.com/2021-03-02/1820480857892_f5ff53aaec7a5507e5ad_512.png`,
-								"size": "Small"
-							}],
-							"width": "auto"
-						},
-						{
-							"type": "Column",
-							"items": [{
-									"type": "TextBlock",
-									"weight": "Bolder",
-									"text": `Metl`,
-									"wrap": true
-								},
-								{
-									"type": "TextBlock",
-									"spacing": "None",
-									"text": `Created ${dateStr}`,
-									"isSubtle": true,
-									"wrap": true
-								}
-							],
-							"width": "stretch"
-						}
-					]
-				},
-				{
-					"type": "TextBlock",
-					"text": `${description}`,
-					"wrap": true
-				},
-				{
-					"type": "Input.ChoiceSet",
-					"id": "icebreakerChoices",
-					"style": "expanded",
-					"isMultiSelect": false,
-					"value": "null",
-					"choices": choices
+					"type": "Column",
+					"items": [{
+						"type": "TextBlock",
+						"weight": "Bolder",
+						"text": `Metl`,
+						"wrap": true
+					},
+					{
+						"type": "TextBlock",
+						"spacing": "None",
+						"text": `Created ${dateStr}`,
+						"isSubtle": true,
+						"wrap": true
+					}
+					],
+					"width": "stretch"
 				}
+				]
+			},
+			{
+				"type": "TextBlock",
+				"text": `${description}`,
+				"wrap": true
+			},
+			{
+				"type": "Input.ChoiceSet",
+				"id": "icebreakerChoices",
+				"style": "expanded",
+				"isMultiSelect": false,
+				"value": "null",
+				"choices": choices
+			}
 			],
 			"actions": [{
-					"type": "Action.Submit",
-					"title": "Submit",
-					"data": {
-						action: "submit"
-					}
+				"type": "Action.Submit",
+				"title": "Submit",
+				"data": {
+					action: "submit"
 				}
+			}
 			]
 		});
 
@@ -396,65 +394,65 @@ class TeamsBot extends TeamsActivityHandler {
 			"type": "AdaptiveCard",
 			"version": "1.0",
 			"body": [{
-					"type": "TextBlock",
-					"size": "Medium",
-					"weight": "Bolder",
-					"text": `${title}`
+				"type": "TextBlock",
+				"size": "Medium",
+				"weight": "Bolder",
+				"text": `${title}`
+			},
+			{
+				"type": "ColumnSet",
+				"columns": [{
+					"type": "Column",
+					"items": [{
+						"type": "Image",
+						"style": "Person",
+						"url": `https://avatars.slack-edge.com/2021-03-02/1820480857892_f5ff53aaec7a5507e5ad_512.png`,
+						"size": "Small"
+					}],
+					"width": "auto"
 				},
 				{
-					"type": "ColumnSet",
-					"columns": [{
-							"type": "Column",
-							"items": [{
-								"type": "Image",
-								"style": "Person",
-								"url": `https://avatars.slack-edge.com/2021-03-02/1820480857892_f5ff53aaec7a5507e5ad_512.png`,
-								"size": "Small"
-							}],
-							"width": "auto"
-						},
-						{
-							"type": "Column",
-							"items": [{
-									"type": "TextBlock",
-									"weight": "Bolder",
-									"text": `Metl`,
-									"wrap": true
-								},
-								{
-									"type": "TextBlock",
-									"spacing": "None",
-									"text": `Created ${dateStr}`,
-									"isSubtle": true,
-									"wrap": true
-								}
-							],
-							"width": "stretch"
-						}
-					]
-				},
-				{
-					"type": "TextBlock",
-					"text": `${description}`,
-					"wrap": true
-				},
+					"type": "Column",
+					"items": [{
+						"type": "TextBlock",
+						"weight": "Bolder",
+						"text": `Metl`,
+						"wrap": true
+					},
+					{
+						"type": "TextBlock",
+						"spacing": "None",
+						"text": `Created ${dateStr}`,
+						"isSubtle": true,
+						"wrap": true
+					}
+					],
+					"width": "stretch"
+				}
+				]
+			},
+			{
+				"type": "TextBlock",
+				"text": `${description}`,
+				"wrap": true
+			},
 			],
 			"actions": [{
-					"type": "Action.Submit",
-					"title": "Yes",
-					"data": {
-						action: "submit",
-						value: "yes"
-					}
-				},
-				{
-					"type": "Action.Submit",
-					"title": "No",
-					"data": {
-						action: "submit",
-						value: "no"
-					}
+				"type": "Action.Submit",
+				"title": "Yes",
+				"data": {
+					action: "submit",
+					value: "yes"
 				}
+			},
+			{
+				"type": "Action.Submit",
+				"title": "No",
+				"data": {
+					action: "submit",
+					value: "no"
+				}
+			}
 			]
 		});
 

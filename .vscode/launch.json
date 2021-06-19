@@ -1,16 +1,7 @@
 {
     "version": "0.2.0",
     "configurations": [
-        {
-            "name": "Launch Remote (Edge)",
-            "type": "pwa-msedge",
-            "request": "launch",
-            "url": "https://teams.microsoft.com/l/app/${teamsAppId}?installAppPackage=true&webjoin=true&${account-hint}",
-            "presentation": {
-                "group": "remote",
-                "order": 1
-            }
-        },
+        
         {
             "name": "Launch Remote (Chrome)",
             "type": "pwa-chrome",
@@ -22,23 +13,11 @@
             }
         },
         {
-            "name": "Launch Bot (Edge)",
-            "type": "pwa-msedge",
-            "request": "launch",
-            "url": "https://teams.microsoft.com/l/app/${localTeamsAppId}?installAppPackage=true&webjoin=true&${account-hint}",
-            "cascadeTerminateToConfigurations": [
-                "Start and Attach to Bot"
-            ],
-            "presentation": {
-                "group": "all",
-                "hidden": true
-            }
-        },
-        {
-            "name": "Launch Bot (Chrome)",
+            "name": "Start and Attach to Frontend (Chrome)",
             "type": "pwa-chrome",
             "request": "launch",
             "url": "https://teams.microsoft.com/l/app/${localTeamsAppId}?installAppPackage=true&webjoin=true&${account-hint}",
+            "preLaunchTask": "Start Frontend",
             "cascadeTerminateToConfigurations": [
                 "Start and Attach to Bot"
             ],
@@ -57,27 +36,15 @@
             "presentation": {
                 "group": "all",
                 "hidden": true
-            }
+            },
+            "internalConsoleOptions": "neverOpen"
         }
     ],
     "compounds": [
         {
-            "name": "Debug (Edge)",
-            "configurations": [
-                "Launch Bot (Edge)",
-                "Start and Attach to Bot"
-            ],
-            "preLaunchTask": "Pre Debug Check",
-            "presentation": {
-                "group": "all",
-                "order": 1
-            },
-            "stopAll": true
-        },
-        {
             "name": "Debug (Chrome)",
             "configurations": [
-                "Launch Bot (Chrome)",
+                "Start and Attach to Frontend (Chrome)",
                 "Start and Attach to Bot"
             ],
             "preLaunchTask": "Pre Debug Check",

@@ -1,33 +1,56 @@
 # msteams-poc
+
 Capstone project creating MS Teams POC app
 
-
 # Icebreaker Yes/No
+
     {
-        "type": "icebreaker",
-        "channel": "Test Channel 1",
-        "style": "YesNo",
-        "question": "Do you like dogs?"
-    }
+    "type": "YesNo",
+    "text": "Do you like dogs?",
+    "targets": [
+        "Test Channel 1",
+        "ethan@metlcapstone.onmicrosoft.com",
+        "Test Channel 2"
+    ]
+
+}
 
 # Icebreaker MultiChoice
+
     {
-        "type": "icebreaker",
-        "channel": "Test Channel 1",
-        "style": "MultiChoice",
-        "question": "What is your favourite house pet?",
-        "choices": [
-            {
-                "title": "Dog",
-                "value": "dog"
-            },
-            {
-                "title": "Cat",
-                "value": "cat"
-            },
-            {
-                "title": "Fish",
-                "value": "fish"
-            }
-        ]
+    "type": "MultiChoice",
+    "text": "What is your favourite house pet?",
+     "choices": [
+        {
+            "title": "Dog",
+            "value": "dog"
+        },
+        {
+            "title": "Cat",
+            "value": "cat"
+        },
+        {
+            "title": "Fish",
+            "value": "fish"
+        }
+    ],
+    "targets": [
+        "Test Channel 1",
+        "ethan@metlcapstone.onmicrosoft.com",
+        "Test Channel 2"
+    ]
+
+}
+
+# Message
+
+    {
+
+    "type": "Message",
+    "text": "Example Message.",
+    "targets": [
+        "Test Channel 1",
+        "ethan@metlcapstone.onmicrosoft.com",
+        "Test Channel 2"
+    ]
     }
