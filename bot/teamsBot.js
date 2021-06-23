@@ -11,7 +11,7 @@ const {
 const {
 	connect
 } = require("ngrok");
-
+const axios = require('axios');
 class TeamsBot extends TeamsActivityHandler {
 	/**
 	 *
@@ -36,8 +36,7 @@ class TeamsBot extends TeamsActivityHandler {
 		this.userState = userState;
 
 		this.onMessage(async (context, next) => {
-			await this.updateMembers(TeamsInfo, context);
-			await this.updateChannels(TeamsInfo, context);
+
 			await this.processMessage(context);
 
 			// By calling next() you ensure that the next BotHandler is run.
@@ -134,67 +133,85 @@ class TeamsBot extends TeamsActivityHandler {
 			text = removedMentionText.toLowerCase().replace(/\n|\r/g, "").trim(); // Remove the line break
 		}
 
-		//Ensure the message we received is a text message
+		//check for non text message
 		if (context.activity.textFormat !== TextFormatTypes.Plain) {
-			console.log("Not a text message");
-		}
+			axios
+				.post('http://[::]:6969/api/icebreaker-response', {
+					id: context.activity.value.id,
+					answer: context.activity.value.answer,
+					from: context.activity.from.id
+				})
+				.then(res => {
 
-		if (context.activity.value) {
-			console.log(context.activity.value);
-		}
+				})
+				.catch(error => {
+					console.error(error);
+				});
 
-		//Figure out which command was used
-		console.log(`Requested command: ${text}`);
-		switch (text) {
-			case "demo": {
-				await context.sendActivity("Demo command success!");
-				break;
+		} else {
+
+			if (context.activity.value) {
+				console.log(context.activity.value);
 			}
-			case "breaktime": {
-				await context.sendActivity("icebreaker command success!");
-				break;
-			}
-			case "message": {
-				await this.updateMembers(TeamsInfo, context);
 
-				const teamMember = this.members[17]; //Specific Member to interact with (Tyson:3,Ethan:17)
+			//Figure out which command was used
+			console.log(`Requested command: ${text}`);
+			switch (text) {
+				case "demo": {
+					await context.sendActivity("Demo command success!");
+					break;
+				}
+				case "breaktime": {
+					await context.sendActivity("icebreaker command success!");
+					break;
+				}
+				case "refresh": {
+					await this.updateMembers(TeamsInfo, context);
+					await this.updateChannels(TeamsInfo, context);
+					break;
+				}
+				case "message": {
+					await this.updateMembers(TeamsInfo, context);
 
-				const message = `Hello ${teamMember.givenName}. I am Testbot.`;
-				//message reference??
-				var ref = TurnContext.getConversationReference(context.activity);
+					const teamMember = this.members[17]; //Specific Member to interact with (Tyson:3,Ethan:17)
 
-				ref.user = teamMember;
+					const message = `Hello ${teamMember.givenName}. I am Testbot.`;
+					//message reference??
+					var ref = TurnContext.getConversationReference(context.activity);
 
-				//create conversation (message)
-				await context.adapter.createConversation(ref,
-					async (t1) => {
-						const ref2 = TurnContext.getConversationReference(t1.activity);
-						await t1.adapter.continueConversation(ref2, async (t2) => {
-							await t2.sendActivity(message);
+					ref.user = teamMember;
+
+					//create conversation (message)
+					await context.adapter.createConversation(ref,
+						async (t1) => {
+							const ref2 = TurnContext.getConversationReference(t1.activity);
+							await t1.adapter.continueConversation(ref2, async (t2) => {
+								await t2.sendActivity(message);
+							});
 						});
-					});
-				break;
-			}
+					break;
+				}
 
-			case "channel": {
-				const teamsChannelId = this.channels[1].id; //Specific Channel to interact with
-				const message = MessageFactory.text('This will be the first message in a new thread');
+				case "channel": {
+					const teamsChannelId = this.channels[1].id; //Specific Channel to interact with
+					const message = MessageFactory.text('This will be the first message in a new thread');
 
-				//Create and store reference to new conversation
-				const newConversation = await this.teamsCreateChannelConversation(context, teamsChannelId, message);
+					//Create and store reference to new conversation
+					const newConversation = await this.teamsCreateChannelConversation(context, teamsChannelId, message);
 
-				//send response to conversation
-				await context.adapter.continueConversation(newConversation[0],
-					async (t) => {
-						await t.sendActivity(MessageFactory.text('This will be the first response to the new thread'));
-					});
+					//send response to conversation
+					await context.adapter.continueConversation(newConversation[0],
+						async (t) => {
+							await t.sendActivity(MessageFactory.text('This will be the first response to the new thread'));
+						});
 
-				break;
-			}
+					break;
+				}
 
-			default: {
-				console.log(`Unknown command: ${text}`);
-				//Temp just to catch any unrecognized commands
+				default: {
+					console.log(`Unknown command: ${text}`);
+					//Temp just to catch any unrecognized commands
+				}
 			}
 		}
 	}
@@ -266,12 +283,12 @@ class TeamsBot extends TeamsActivityHandler {
 		switch (body.type) {
 			//Yes/no question
 			case "YesNo": {
-				message = this.createYesNoIcebreaker(body.text);
+				message = this.createYesNoIcebreaker(body.text, body.id);
 				break;
 			}
 			//Multiple choice question
 			case "MultiChoice": {
-				message = this.createMultiResponseIcebreaker(body.text, body.choices);
+				message = this.createMultiResponseIcebreaker(body.text, body.choices, body.id);
 				break;
 			}
 			//Text message
@@ -295,7 +312,7 @@ class TeamsBot extends TeamsActivityHandler {
 	/*
 		Create an icebreaker question with multiple response options
 	*/
-	createMultiResponseIcebreaker(question, choices) {
+	createMultiResponseIcebreaker(question, choices, id) {
 		var title = "IceBreaker";
 		var description = question;
 		const dateOptions = {
@@ -355,7 +372,7 @@ class TeamsBot extends TeamsActivityHandler {
 			},
 			{
 				"type": "Input.ChoiceSet",
-				"id": "icebreakerChoices",
+				"id": "answer",
 				"style": "expanded",
 				"isMultiSelect": false,
 				"value": "null",
@@ -366,7 +383,7 @@ class TeamsBot extends TeamsActivityHandler {
 				"type": "Action.Submit",
 				"title": "Submit",
 				"data": {
-					action: "submit"
+					id: id
 				}
 			}
 			]
@@ -378,7 +395,7 @@ class TeamsBot extends TeamsActivityHandler {
 	/*
 		Create an icebreaker question with only yes or no answers
 	*/
-	createYesNoIcebreaker(question) {
+	createYesNoIcebreaker(question, id) {
 		var title = "IceBreaker";
 		var description = question;
 		const dateOptions = {
@@ -441,16 +458,16 @@ class TeamsBot extends TeamsActivityHandler {
 				"type": "Action.Submit",
 				"title": "Yes",
 				"data": {
-					action: "submit",
-					value: "yes"
+					id: id,
+					answer: "yes"
 				}
 			},
 			{
 				"type": "Action.Submit",
 				"title": "No",
 				"data": {
-					action: "submit",
-					value: "no"
+					id: id,
+					answer: "no"
 				}
 			}
 			]
