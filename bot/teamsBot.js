@@ -96,6 +96,7 @@ class TeamsBot extends TeamsActivityHandler {
 		this.members = await TeamsInfo.getMembers(context);
 	}
 	async updateChannels(TeamsInfo, context) {
+		//console.log(await TeamsInfo.getTeamDetails(context));
 		this.channels = await TeamsInfo.getTeamChannels(context);
 		this.channels[0].name = "General";
 	}
@@ -281,14 +282,35 @@ class TeamsBot extends TeamsActivityHandler {
 
 		let message;
 		switch (body.type) {
+			//Number question
+			case "Number": {
+
+				if (body.min && body.max) {
+					message = this.createNumberIcebreaker(body.text, body.id, body.min, body.max);
+				} else {
+					message = this.createNumberIcebreaker(body.text, body.id, 1, 10);
+
+				}
+				break;
+			}
 			//Yes/no question
 			case "YesNo": {
-				message = this.createYesNoIcebreaker(body.text, body.id);
+				message = this.createTwoChoiceIcebreaker(body.text, ["yes", "no"], body.id);
+				break;
+			}
+			//Happy/Sad question
+			case "HappySad": {
+				message = this.createTwoChoiceIcebreaker(body.text, [":)", ":("], body.id);
+				break;
+			}
+			//TextBlock question
+			case "TextBlock": {
+				message = this.createTextBlockIcebreaker(body.text, body.id);
 				break;
 			}
 			//Multiple choice question
 			case "MultiChoice": {
-				message = this.createMultiResponseIcebreaker(body.text, body.choices, body.id);
+				message = this.createMultiChoiceIcebreaker(body.text, body.choices, body.id);
 				break;
 			}
 			//Text message
@@ -308,11 +330,85 @@ class TeamsBot extends TeamsActivityHandler {
 			}
 		});
 	}
+	/*
+			Create an icebreaker question with multiple response options
+		*/
+	createNumberIcebreaker(question, id, min, max) {
+		const card = CardFactory.adaptiveCard({
 
+			"$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+			"type": "AdaptiveCard",
+			"version": "1.0",
+			"body": [
+
+				{
+					"type": "TextBlock",
+					"text": question
+				}, {
+					"type": "Input.Number",
+					"id": "answer",
+					"placeholder": "Enter a number",
+					"min": min,
+					"max": max,
+					"value": 1
+				}
+			],
+			"actions": [
+				{
+					"type": "Action.Submit",
+					"title": "OK",
+					"data": {
+						id: id
+					}
+				}
+			]
+		}
+
+		);
+
+		return MessageFactory.attachment(card);
+
+	}
+	/*
+			Create an icebreaker question with multiple response options
+		*/
+	createTextBlockIcebreaker(question, id) {
+		const card = CardFactory.adaptiveCard({
+			"$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+			"type": "AdaptiveCard",
+			"version": "1.0",
+			"body": [
+
+				{
+					"type": "TextBlock",
+					"text": question
+				},
+				{
+					"type": "Input.Text",
+					"id": "answer",
+					"placeholder": "",
+					"maxLength": 500,
+					"isMultiline": true
+				}
+			],
+			"actions": [
+				{
+					"type": "Action.Submit",
+					"title": "Submit",
+					"data": {
+						id: id
+					}
+				}
+			]
+		});
+
+		return MessageFactory.attachment(card);
+
+	}
 	/*
 		Create an icebreaker question with multiple response options
 	*/
-	createMultiResponseIcebreaker(question, choices, id) {
+	createMultiChoiceIcebreaker(question, choices, id) {
 		var title = "IceBreaker";
 		var description = question;
 		const dateOptions = {
@@ -395,7 +491,7 @@ class TeamsBot extends TeamsActivityHandler {
 	/*
 		Create an icebreaker question with only yes or no answers
 	*/
-	createYesNoIcebreaker(question, id) {
+	createTwoChoiceIcebreaker(question, choices, id) {
 		var title = "IceBreaker";
 		var description = question;
 		const dateOptions = {
@@ -456,18 +552,18 @@ class TeamsBot extends TeamsActivityHandler {
 			],
 			"actions": [{
 				"type": "Action.Submit",
-				"title": "Yes",
+				"title": choices[0],
 				"data": {
 					id: id,
-					answer: "yes"
+					answer: choices[0]
 				}
 			},
 			{
 				"type": "Action.Submit",
-				"title": "No",
+				"title": choices[1],
 				"data": {
 					id: id,
-					answer: "no"
+					answer: choices[1]
 				}
 			}
 			]
