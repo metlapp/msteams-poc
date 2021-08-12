@@ -87,10 +87,25 @@ server.use(
 		mapParams: true
 	})
 );
-// Listen for incoming message requests.
+
+// Listen for incoming proactive message request.
 server.post("/api/proactivemessage", async (req, res, next) => {
 	try {
 		await bot.draftMessage(adapter, req.body);
+		res.status(200);
+	} catch (err) {
+		console.log(err);
+		res.status(500);
+	}
+
+	res.send();
+});
+
+
+// Listen for incoming debug request.
+server.post("/api/debug", async (req, res, next) => {
+	try {
+		await bot.debug();
 		res.status(200);
 	} catch (err) {
 		console.log(err);

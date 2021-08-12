@@ -1,8 +1,7 @@
 node_modules
 /.fx/*.env
 /.fx/*.userdata
-.fx/env.default.json
+/.fx/env.default.json
+/.fx/subscriptioninfo.json
 .DS_Store
-.vscode/launch.json
-.fx/env.default.json
-.vscode/launch.json
+/.vscode/launch.json

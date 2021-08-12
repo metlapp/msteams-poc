@@ -51,6 +51,7 @@ class TeamsBot extends TeamsActivityHandler {
 			await next();
 		});
 		this.onTeamsChannelRenamedEvent(async (channelInfo, TeamInfo, context, next) => {
+			console.log(await TeamsInfo.getTeamChannels(context));
 			await this.updateChannels(TeamsInfo, context);
 			await next();
 		});
@@ -136,8 +137,9 @@ class TeamsBot extends TeamsActivityHandler {
 
 		//check for non text message
 		if (context.activity.textFormat !== TextFormatTypes.Plain) {
+			/*
 			axios
-				.post('http://[::]:6969/api/icebreaker-response', {
+				.post('http://[::]:2020/api/icebreaker-response', {
 					id: context.activity.value.id,
 					answer: context.activity.value.answer,
 					from: context.activity.from.id
@@ -148,7 +150,9 @@ class TeamsBot extends TeamsActivityHandler {
 				.catch(error => {
 					console.error(error);
 				});
-
+			*/
+			console.log(`Value: ${context.activity.value.answer}`);
+			console.log(`From: ${context.activity.from.id}`);
 		} else {
 
 			if (context.activity.value) {
@@ -167,8 +171,10 @@ class TeamsBot extends TeamsActivityHandler {
 					break;
 				}
 				case "refresh": {
+					console.log("refresh command")
 					await this.updateMembers(TeamsInfo, context);
 					await this.updateChannels(TeamsInfo, context);
+					console.log(await TeamsInfo.getTeamChannels(context));
 					break;
 				}
 				case "message": {
@@ -221,6 +227,10 @@ class TeamsBot extends TeamsActivityHandler {
 		return re.test(String(email).toLowerCase());
 	}
 
+	isUser(target) {
+		return target.email != null;
+	}
+
 	//search through all channels, match the names and return ID
 	getChannelID(channelName) {
 		for (var i = 0; i < this.channels.length; i++) {
@@ -242,20 +252,24 @@ class TeamsBot extends TeamsActivityHandler {
 	}
 
 	//send message to a channel
-	async sendChannelMessage(adapter, channelID, message) {
-
-		//conversation parameters
-		const conversationParameters = {
-			isGroup: true,
-			channelData: {
-				channel: {
-					id: channelID
-				}
-			},
-			activity: message
-		};
-		const connectorClient = adapter.createConnectorClient("https://smba.trafficmanager.net/ca/");
-		const conversationResourceResponse = await connectorClient.conversations.createConversation(conversationParameters);
+	async sendChannelMessage(adapter, channel, message) {
+		try {
+			console.log(channel.id);
+			//conversation parameters
+			const conversationParameters = {
+				isGroup: true,
+				channelData: {
+					channel: {
+						id: channel.id
+					}
+				},
+				activity: message
+			};
+			const connectorClient = adapter.createConnectorClient("https://smba.trafficmanager.net/ca/");
+			const conversationResourceResponse = await connectorClient.conversations.createConversation(conversationParameters);
+		} catch (err) {
+			//console.log(err);
+		}
 	}
 
 	//send message to a member
@@ -269,7 +283,7 @@ class TeamsBot extends TeamsActivityHandler {
 			],
 			channelData: {
 				tenant: {
-					id: "9f04f85a-8f3c-43e4-887b-549d66d6dab8"
+					id: member.tenantId
 				}
 			}
 		};
@@ -319,14 +333,18 @@ class TeamsBot extends TeamsActivityHandler {
 				break;
 			}
 		}
+
 		//loop through targets and check for message type
 		(body.targets).forEach(element => {
-			if (this.validateEmail(element)) {
+			//if (this.validateEmail(element)) {
+			if (this.isUser(element)) {
 				//email -> member
-				this.sendMemberMessage(adapter, this.getMemberDetails(element), message);
+				//this.sendMemberMessage(adapter, this.getMemberDetails(element), message);
+				this.sendMemberMessage(adapter, element, message);
 			} else {
 				//channelName -> channel
-				this.sendChannelMessage(adapter, this.getChannelID(element), message);
+				//this.sendChannelMessage(adapter, this.getChannelID(element), message);
+				this.sendChannelMessage(adapter, element, message);
 			}
 		});
 	}
