@@ -94,15 +94,9 @@ module.exports = class TeamsUtils {
         });
     }
 
-	async fullTeamsUpdate(context) {
+	static async fullTeamsUpdate(context) {
         //Fetch team data
         let {teamData, teamMembers, teamChannels} = await this.getTeamData(context);
-
-        //Ensure the team is registered with the metl api
-		let isRegistered = await this.isTeamRegistered(teamData.id);
-		if (isRegistered) {
-			return await this.fullTeamsUpdate(context);
-		}
 
         //Prep channel and member data
 		let channelsAsString = this.channelsToString(teamChannels);

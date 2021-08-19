@@ -4,4 +4,3 @@ node_modules
 /.fx/env.default.json
 /.fx/subscriptioninfo.json
 .DS_Store
-/.vscode/launch.json
