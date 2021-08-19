@@ -2,55 +2,10 @@
 
 Capstone project creating MS Teams POC app
 
-# Icebreaker Yes/No
+# Install
 
-    {
-    "type": "YesNo",
-    "text": "Do you like dogs?",
-    "targets": [
-        "Test Channel 1",
-        "ethan@metlcapstone.onmicrosoft.com",
-        "Test Channel 2"
-    ]
+We don't really know the proper steps to install this right now. We were forced to create a bot on our individual machines using the Teams Toolkit within VSCode. Once we had a basic bot created, we could then copy the files from the repo and replace them for files the local bot created.
 
-}
+# Testing
 
-# Icebreaker MultiChoice
-
-    {
-    "type": "MultiChoice",
-    "text": "What is your favourite house pet?",
-     "choices": [
-        {
-            "title": "Dog",
-            "value": "dog"
-        },
-        {
-            "title": "Cat",
-            "value": "cat"
-        },
-        {
-            "title": "Fish",
-            "value": "fish"
-        }
-    ],
-    "targets": [
-        "Test Channel 1",
-        "ethan@metlcapstone.onmicrosoft.com",
-        "Test Channel 2"
-    ]
-
-}
-
-# Message
-
-    {
-
-    "type": "Message",
-    "text": "Example Message.",
-    "targets": [
-        "Test Channel 1",
-        "ethan@metlcapstone.onmicrosoft.com",
-        "Test Channel 2"
-    ]
-    }
+Testing icebreakers/other messages should now be run through the api by creating a new scheduled message.
