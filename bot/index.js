@@ -47,12 +47,10 @@ adapter.onTurnError = async (context, error) => {
 		"TurnError"
 	);
 
-	// Send a message to the user
 	//TODO remove this and add a logging system
-	await context.sendActivity(`The bot encountered an unhandled error:\n ${error.message}`);
-	await context.sendActivity("To continue to run this bot, please fix the bot source code.");
+	//await context.sendActivity(`The bot encountered an unhandled error:\n ${error.message}`);
+	//await context.sendActivity("To continue to run this bot, please fix the bot source code.");
 	console.error(`The bot encountered an unhandled error:\n ${error.message}`);
-
 
 	// Clear out state
 	await conversationState.delete(context);
@@ -88,34 +86,6 @@ server.use(
 	})
 );
 
-// Listen for incoming proactive message request.
-server.post("/api/proactivemessage", async (req, res, next) => {
-	try {
-		await bot.draftMessage(adapter, req.body);
-		res.status(200);
-	} catch (err) {
-		console.log(err);
-		res.status(500);
-	}
-
-	res.send();
-});
-
-
-// Listen for incoming debug request.
-server.post("/api/debug", async (req, res, next) => {
-	try {
-		await bot.debug();
-		res.status(200);
-	} catch (err) {
-		console.log(err);
-		res.status(500);
-	}
-
-	res.send();
-});
-
-
 // Listen for incoming requests.
 server.post("/api/messages", async (req, res) => {
 	await adapter
@@ -128,6 +98,19 @@ server.post("/api/messages", async (req, res) => {
 				throw err;
 			}
 		});
+});
+
+// Listen for incoming proactive message request.
+server.post("/api/proactivemessage", async (req, res, next) => {
+	try {
+		await bot.draftMessage(adapter, req.body);
+		res.status(200);
+	} catch (err) {
+		console.log(err);
+		res.status(500);
+	}
+
+	res.send();
 });
 
 server.get(

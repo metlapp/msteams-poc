@@ -11,7 +11,9 @@ const {
 const {
 	connect
 } = require("ngrok");
-const axios = require('axios');
+
+const TeamsUtils = require("./teamsUtils");
+
 class TeamsBot extends TeamsActivityHandler {
 	/**
 	 *
@@ -21,9 +23,6 @@ class TeamsBot extends TeamsActivityHandler {
 	 */
 
 	constructor(conversationState, userState) {
-		var members;
-		var channels;
-
 		super();
 		if (!conversationState) {
 			throw new Error("[TeamsBot]: Missing parameter. conversationState is required");
@@ -35,92 +34,79 @@ class TeamsBot extends TeamsActivityHandler {
 		this.conversationState = conversationState;
 		this.userState = userState;
 
-		this.onMessage(async (context, next) => {
+		this.serviceURL = "https://smba.trafficmanager.net/ca/";
 
+		//Handler for messages sent within teams
+		this.onMessage(async (context, next) => {
+			//Process the message that was sent
 			await this.processMessage(context);
 
 			// By calling next() you ensure that the next BotHandler is run.
 			await next();
 		});
+
+		//Handler for when a new channel is created 
 		this.onTeamsChannelCreatedEvent(async (channelInfo, TeamInfo, context, next) => {
-			await this.updateChannels(TeamsInfo, context);
+			await TeamsUtils.updateChannels(context);
 			await next();
 		});
+
+		//Handler for when a channel is deleted
 		this.onTeamsChannelDeletedEvent(async (channelInfo, TeamInfo, context, next) => {
-			await this.updateChannels(TeamsInfo, context);
+			await TeamsUtils.updateChannels(context);
 			await next();
 		});
+
+		//Handler for when a channel is renamed
 		this.onTeamsChannelRenamedEvent(async (channelInfo, TeamInfo, context, next) => {
-			console.log(await TeamsInfo.getTeamChannels(context));
-			await this.updateChannels(TeamsInfo, context);
+			await TeamsUtils.updateChannels(context);
 			await next();
 		});
+
+		//Handler for when a channel is restored
 		this.onTeamsChannelRestoredEvent(async (channelInfo, TeamInfo, context, next) => {
-			await this.updateChannels(TeamsInfo, context);
+			await TeamsUtils.updateChannels(context);
 			await next();
 		});
 
+		//Handler for when a new user joins the team (this includes the bot joining)
 		this.onMembersAdded(async (context, next) => {
-
 			const membersAdded = context.activity.membersAdded;
 			for (let cnt = 0; cnt < membersAdded.length; cnt++) {
 				if (membersAdded[cnt].id) {
-					const cardButtons = [{
-						type: ActionTypes.ImBack,
-						title: "Show introduction card",
-						value: "intro"
-					},];
-					await this.updateMembers(TeamsInfo, context);
-					await this.updateChannels(TeamsInfo, context);
+					try {
+						//Try and register the team
+						let [success, response] = await TeamsUtils.registerTeam(context);
+						if (success) {
+							await context.sendActivity(response);
+						} else {
+							console.error(response);
+							await context.sendActivity("There was a problem installing the bot with Metl Solutions. Please get in contact with us.");
+						}
+					} catch (err) {
+						console.error(err);
+					}
 
-					const card = CardFactory.heroCard("Welcome", null, cardButtons, {
-						text: `Congratulations! Your hello world Bot 
-                            template is running. This bot has default commands to help you modify it.
-                            You can reply <strong>intro</strong> to see the introduction card. This bot is built with <a href=\"https://dev.botframework.com/\">Microsoft Bot Framework</a>`,
-					});
-					await context.sendActivity({
-						attachments: [card]
-					});
 					break;
 				}
 			}
 			await next();
 		});
 
+		//Handler for when a member is removed (or left i think)
 		this.onMembersRemoved(async (context, next) => {
-			await this.updateMembers(TeamsInfo, context);
+			const membersRemoved = context.activity.membersRemoved;
+			for (let cnt = 0; cnt < membersRemoved.length; cnt++) {
+				if (membersRemoved[cnt].id) {
+					await TeamsUtils.deactivateTeam(context);
+					return;
+				}
+			}
+
+			await TeamsUtils.updateMembers(context);
 			await next();
 		});
 	}
-
-	async updateMembers(TeamsInfo, context) {
-		this.members = await TeamsInfo.getMembers(context);
-	}
-	async updateChannels(TeamsInfo, context) {
-		//console.log(await TeamsInfo.getTeamDetails(context));
-		this.channels = await TeamsInfo.getTeamChannels(context);
-		this.channels[0].name = "General";
-	}
-
-	//create channel conversation
-	async teamsCreateChannelConversation(context, teamsChannelId, message) {
-		const conversationParameters = {
-			isGroup: true,
-			channelData: {
-				channel: {
-					id: teamsChannelId
-				}
-			},
-			activity: message
-		};
-
-		const connectorClient = context.adapter.createConnectorClient(context.activity.serviceUrl);
-		const conversationResourceResponse = await connectorClient.conversations.createConversation(conversationParameters);
-		const conversationReference = TurnContext.getConversationReference(context.activity);
-		conversationReference.conversation.id = conversationResourceResponse.id;
-		return [conversationReference, conversationResourceResponse.activityId];
-	}
-
 
 	//Process an incoming message
 	async processMessage(context) {
@@ -135,86 +121,40 @@ class TeamsBot extends TeamsActivityHandler {
 			text = removedMentionText.toLowerCase().replace(/\n|\r/g, "").trim(); // Remove the line break
 		}
 
-		//check for non text message
+		//check for a non text message
 		if (context.activity.textFormat !== TextFormatTypes.Plain) {
-			/*
-			axios
-				.post('http://[::]:2020/api/icebreaker-response', {
-					id: context.activity.value.id,
-					answer: context.activity.value.answer,
-					from: context.activity.from.id
-				})
-				.then(res => {
+			//TODO implement proper post request
 
-				})
-				.catch(error => {
-					console.error(error);
-				});
-			*/
 			console.log(`Value: ${context.activity.value.answer}`);
 			console.log(`From: ${context.activity.from.id}`);
 		} else {
-
-			if (context.activity.value) {
-				console.log(context.activity.value);
-			}
-
 			//Figure out which command was used
 			console.log(`Requested command: ${text}`);
 			switch (text) {
-				case "demo": {
-					await context.sendActivity("Demo command success!");
+				case "awake": {
+					await context.sendActivity("Hello! I'm awake!");
 					break;
 				}
-				case "breaktime": {
-					await context.sendActivity("icebreaker command success!");
+				case "update-channels": {
+					let [success, response] = await TeamsUtils.updateChannels(context);
+					if (success) {
+						await context.sendActivity(response);
+					} else {
+						await context.sendActivity("There was an error trying to update the channels for the organization. Please get in contact with us.");
+						console.error(response);
+					}
 					break;
 				}
-				case "refresh": {
-					console.log("refresh command")
-					await this.updateMembers(TeamsInfo, context);
-					await this.updateChannels(TeamsInfo, context);
-					console.log(await TeamsInfo.getTeamChannels(context));
+				case "update-members": {
+					let [success, response] = await TeamsUtils.updateMembers(context);
+					if (success) {
+						await context.sendActivity(response);
+					} else {
+						await context.sendActivity("There was an error trying to update the members for the organization. Please get in contact with us.");
+						console.error(response);
+					}
 					break;
 				}
-				case "message": {
-					await this.updateMembers(TeamsInfo, context);
-
-					const teamMember = this.members[17]; //Specific Member to interact with (Tyson:3,Ethan:17)
-
-					const message = `Hello ${teamMember.givenName}. I am Testbot.`;
-					//message reference??
-					var ref = TurnContext.getConversationReference(context.activity);
-
-					ref.user = teamMember;
-
-					//create conversation (message)
-					await context.adapter.createConversation(ref,
-						async (t1) => {
-							const ref2 = TurnContext.getConversationReference(t1.activity);
-							await t1.adapter.continueConversation(ref2, async (t2) => {
-								await t2.sendActivity(message);
-							});
-						});
-					break;
-				}
-
-				case "channel": {
-					const teamsChannelId = this.channels[1].id; //Specific Channel to interact with
-					const message = MessageFactory.text('This will be the first message in a new thread');
-
-					//Create and store reference to new conversation
-					const newConversation = await this.teamsCreateChannelConversation(context, teamsChannelId, message);
-
-					//send response to conversation
-					await context.adapter.continueConversation(newConversation[0],
-						async (t) => {
-							await t.sendActivity(MessageFactory.text('This will be the first response to the new thread'));
-						});
-
-					break;
-				}
-
 				default: {
 					console.log(`Unknown command: ${text}`);
 					//Temp just to catch any unrecognized commands
@@ -222,39 +162,15 @@ class TeamsBot extends TeamsActivityHandler {
 			}
 		}
 	}
-	validateEmail(email) {
-		const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-		return re.test(String(email).toLowerCase());
-	}
 
+	//Used to check if a target sent from the API is a user
 	isUser(target) {
 		return target.email != null;
 	}
 
-	//search through all channels, match the names and return ID
-	getChannelID(channelName) {
-		for (var i = 0; i < this.channels.length; i++) {
-			if (this.channels[i].name.toString() == channelName) {
-				return this.channels[i].id;
-			}
-		}
-		return null;
-	}
-
-	//search through all members, match email and return details
-	getMemberDetails(email) {
-		for (var i = 0; i < this.members.length; i++) {
-			if (this.members[i].email.toString() == email) {
-				return this.members[i];
-			}
-		}
-		return null;
-	}
-
-	//send message to a channel
+	//Send a message to a channel
 	async sendChannelMessage(adapter, channel, message) {
 		try {
-			console.log(channel.id);
 			//conversation parameters
 			const conversationParameters = {
 				isGroup: true,
@@ -265,40 +181,46 @@ class TeamsBot extends TeamsActivityHandler {
 				},
 				activity: message
 			};
-			const connectorClient = adapter.createConnectorClient("https://smba.trafficmanager.net/ca/");
+			const connectorClient = adapter.createConnectorClient(this.serviceURL);
 			const conversationResourceResponse = await connectorClient.conversations.createConversation(conversationParameters);
 		} catch (err) {
-			//console.log(err);
+			console.log(err);
+			//TODO somehow tell the front-end there was an issue? Can't without a context.
+			//Maybe try storing the latest context for each team in an array then index that?
 		}
 	}
 
-	//send message to a member
+	//Send a message to a user
 	async sendMemberMessage(adapter, member, message) {
-
-		const connectorClient = adapter.createConnectorClient("https://smba.trafficmanager.net/ca/");
-		//conversation parameters
-		const conversationParameters = {
-			members: [
-				member
-			],
-			channelData: {
-				tenant: {
-					id: member.tenantId
+		try {
+			//conversation parameters
+			const conversationParameters = {
+				members: [
+					member
+				],
+				channelData: {
+					tenant: {
+						id: member.tenantId
+					}
 				}
-			}
-		};
-		const conversationResource = await connectorClient.conversations.createConversation(conversationParameters);
-		await connectorClient.conversations.sendToConversation(conversationResource.id, message);
+			};
+			const connectorClient = adapter.createConnectorClient(this.serviceURL);
+			const conversationResource = await connectorClient.conversations.createConversation(conversationParameters);
+			await connectorClient.conversations.sendToConversation(conversationResource.id, message);
+		} catch (err) {
+			console.log(err);
+			//TODO somehow tell the front-end there was an issue? Can't without a context.
+			//Maybe try storing the latest context for each team in an array then index that?
+		}
 	}
 
-	//create and send message based on info from POST request
+	//Create and send a message based on flags from the post request
 	async draftMessage(adapter, body) {
-
 		let message;
+
 		switch (body.type) {
 			//Number question
 			case "Number": {
-
 				if (body.min && body.max) {
 					message = this.createNumberIcebreaker(body.text, body.id, body.min, body.max);
 				} else {
@@ -307,26 +229,31 @@ class TeamsBot extends TeamsActivityHandler {
 				}
 				break;
 			}
+
 			//Yes/no question
 			case "YesNo": {
-				message = this.createTwoChoiceIcebreaker(body.text, ["yes", "no"], body.id);
+				message = this.createTwoChoiceIcebreaker(body.text, ["Yes", "No"], body.id);
 				break;
 			}
+
 			//Happy/Sad question
 			case "HappySad": {
 				message = this.createTwoChoiceIcebreaker(body.text, [":)", ":("], body.id);
 				break;
 			}
+
 			//TextBlock question
 			case "TextBlock": {
 				message = this.createTextBlockIcebreaker(body.text, body.id);
 				break;
 			}
+
 			//Multiple choice question
 			case "MultiChoice": {
 				message = this.createMultiChoiceIcebreaker(body.text, body.choices, body.id);
 				break;
 			}
+
 			//Text message
 			case "Message": {
 				message = MessageFactory.text(body.text);
@@ -334,23 +261,17 @@ class TeamsBot extends TeamsActivityHandler {
 			}
 		}
 
-		//loop through targets and check for message type
-		(body.targets).forEach(element => {
-			//if (this.validateEmail(element)) {
-			if (this.isUser(element)) {
-				//email -> member
-				//this.sendMemberMessage(adapter, this.getMemberDetails(element), message);
-				this.sendMemberMessage(adapter, element, message);
+		//loop through targets and check for target type
+		(body.targets).forEach(target => {
+			if (this.isUser(target)) {
+				this.sendMemberMessage(adapter, target, message);
 			} else {
-				//channelName -> channel
-				//this.sendChannelMessage(adapter, this.getChannelID(element), message);
-				this.sendChannelMessage(adapter, element, message);
+				this.sendChannelMessage(adapter, target, message);
 			}
 		});
 	}
-	/*
-			Create an icebreaker question with multiple response options
-		*/
+
+	//Create an icebreaker question with a number only response
 	createNumberIcebreaker(question, id, min, max) {
 		const card = CardFactory.adaptiveCard({
 
@@ -387,9 +308,8 @@ class TeamsBot extends TeamsActivityHandler {
 		return MessageFactory.attachment(card);
 
 	}
-	/*
-			Create an icebreaker question with multiple response options
-		*/
+
+	//Create an icebreaker question with a text response
 	createTextBlockIcebreaker(question, id) {
 		const card = CardFactory.adaptiveCard({
 			"$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -423,9 +343,8 @@ class TeamsBot extends TeamsActivityHandler {
 		return MessageFactory.attachment(card);
 
 	}
-	/*
-		Create an icebreaker question with multiple response options
-	*/
+
+	//Create an icebreaker question with multiple options
 	createMultiChoiceIcebreaker(question, choices, id) {
 		var title = "IceBreaker";
 		var description = question;
@@ -506,9 +425,7 @@ class TeamsBot extends TeamsActivityHandler {
 		return MessageFactory.attachment(card);
 	}
 
-	/*
-		Create an icebreaker question with only yes or no answers
-	*/
+	//Create an icebreaker question with two possible responses
 	createTwoChoiceIcebreaker(question, choices, id) {
 		var title = "IceBreaker";
 		var description = question;
