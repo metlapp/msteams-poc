@@ -1,6 +1,5 @@
 node_modules
 /.fx/*.env
 /.fx/*.userdata
-/.fx/env.default.json
 /.fx/subscriptioninfo.json
 .DS_Store
