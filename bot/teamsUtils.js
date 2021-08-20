@@ -5,14 +5,14 @@ const axios = require('axios');
 const authAccount = {
     username: 'admin@admin.com',
     password: 'admin'
-}
+};
 const apiConfig = {
     baseUrl: 'http://127.0.0.1:8000',
     auth: authAccount,
     headers: {
         "Content-type": "application/json"
     },
-}
+};
 
 module.exports = class TeamsUtils {
 
@@ -127,9 +127,15 @@ module.exports = class TeamsUtils {
         //Grab teamID from the activity since the bot has technically left
 		let teamID = context.activity.conversation.id;
 
+		//Ensure the team is registered with the metl api
+		let isRegistered = await this.isTeamRegistered(teamID);
+		if (!isRegistered) {
+			return;
+		}
+
 		let data = {
             "disabled": true
-        }
+        };
 
         //Preform the update request
         let [success, response] = await this.updateMetlOrganization(teamID, data);
@@ -207,7 +213,7 @@ module.exports = class TeamsUtils {
         let data = {
             "teams_user_list": usersAsString,
             "teams_user_dump": teamMembers
-        }
+        };
 
 		//Preform the update request
 		let [success, response] = await this.updateMetlOrganization(teamData.id, data);
