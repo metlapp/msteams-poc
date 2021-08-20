@@ -9,9 +9,12 @@
         ],
         "azureResources": [],
         "activeResourcePlugins": [
-            "fx-resource-local-debug",
             "fx-resource-bot",
-            "fx-resource-aad-app-for-teams"
+            "fx-resource-aad-app-for-teams",
+            "fx-resource-local-debug",
+            "fx-resource-appstudio"
         ]
-    }
+    },
+    "currentEnv": "default",
+    "projectId": "a401d2f2-1c58-4e5c-ba76-c26c6af48a14"
 }

@@ -42,12 +42,8 @@
                     ],
                     "commands": [
                         {
-                            "title": "breaktime",
-                            "description": "Metl - icebreaker now, event in 5 minutes"
-                        },
-                        {
-                            "title": "demo",
-                            "description": "A demo command"
+                            "title": "awake",
+                            "description": "Check if the bot is currently active"
                         }
                     ]
                 }
